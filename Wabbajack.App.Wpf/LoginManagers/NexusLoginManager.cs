@@ -1,6 +1,7 @@
 using System;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -10,6 +11,7 @@ using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Wabbajack.Downloaders;
 using Wabbajack.DTOs.Logins;
+using Wabbajack.Messages;
 using Wabbajack.Networking.Http.Interfaces;
 using Wabbajack.UserIntervention;
 
@@ -39,7 +41,7 @@ public class NexusLoginManager : ViewModel, ILoginFor<NexusDownloader>
         _logger = logger;
         _token = token;
         _serviceProvider = serviceProvider;
-        Task.Run(async () => await RefreshTokenState());
+        Task.Run(RefreshTokenState);
         
         ClearLogin = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -47,8 +49,7 @@ public class NexusLoginManager : ViewModel, ILoginFor<NexusDownloader>
             await ClearLoginToken();
         }, this.WhenAnyValue(v => v.HaveLogin));
 
-        Icon = BitmapFrame.Create(
-            typeof(NexusLoginManager).Assembly.GetManifestResourceStream("Wabbajack.App.Wpf.LoginManagers.Icons.nexus.png")!);
+        Icon = (DrawingImage)Application.Current.Resources["NexusLogo"];
         
         TriggerLogin = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -66,11 +67,9 @@ public class NexusLoginManager : ViewModel, ILoginFor<NexusDownloader>
 
     private void StartLogin()
     {
-        var view = new BrowserWindow(_serviceProvider);
-        view.Closed += async (sender, args) => { await RefreshTokenState(); };
-        var provider = _serviceProvider.GetRequiredService<NexusLoginHandler>();
-        view.DataContext = provider;
-        view.Show();
+        var handler = _serviceProvider.GetRequiredService<NexusLoginHandler>();
+        handler.Closed += async (sender, args) => { await RefreshTokenState(); };
+        ShowBrowserWindow.Send(handler);
     }
 
     private async Task RefreshTokenState()
